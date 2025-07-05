@@ -1,5 +1,4 @@
 
-import pytest
 from main import apply_filter, apply_order
 
 sample_data = [
