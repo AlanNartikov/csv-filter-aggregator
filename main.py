@@ -10,6 +10,7 @@ def parse_args():
     parser.add_argument("--file", required=True, help="Path to CSV file")
     parser.add_argument("--where", help="Filter condition (e.g. column=value or column>value)")
     parser.add_argument("--aggregate", help="Aggregation (e.g. column=avg|min|max)")
+    parser.add_argument("--order-by", help="Ordering (e.g. column=asc|desc)")
     return parser.parse_args()
 
 
@@ -19,7 +20,7 @@ def read_csv(file_path: str) -> List[Dict[str, str]]:
         return list(reader)
 
 
-def apply_filter(data: List[Dict[str, str]], condition: str) -> List[Dict[str, str]]:
+def apply_filter(data: List[Dict[str, str]], condition: Optional[str]) -> List[Dict[str, str]]:
     if not condition:
         return data
 
@@ -37,26 +38,36 @@ def apply_filter(data: List[Dict[str, str]], condition: str) -> List[Dict[str, s
         return data
 
 
+def apply_order(data: List[Dict[str, str]], order_clause: Optional[str]) -> List[Dict[str, str]]:
+    if not order_clause:
+        return data
+    try:
+        col, direction = order_clause.split("=")
+        return sorted(data, key=lambda row: row[col] if not row[col].replace('.', '', 1).isdigit() else float(row[col]), reverse=(direction == "desc"))
+    except Exception as e:
+        print(f"Ordering failed: {e}", file=sys.stderr)
+        return data
+
+
 def aggregate(data: List[Dict[str, str]], agg: Optional[str]) -> None:
     if not agg:
         print(tabulate(data, headers="keys", tablefmt="grid"))
         return
 
+    AGGREGATORS = {
+        "avg": lambda vals: sum(vals) / len(vals),
+        "min": min,
+        "max": max
+    }
+
     try:
         column, op = agg.split("=")
         values = [float(row[column]) for row in data]
-
-        if op == "avg":
-            result = sum(values) / len(values)
-        elif op == "min":
-            result = min(values)
-        elif op == "max":
-            result = max(values)
+        if op in AGGREGATORS:
+            result = AGGREGATORS[op](values)
+            print(tabulate([{op: result}], headers="keys", tablefmt="grid"))
         else:
             print(f"Unsupported aggregation operator: {op}", file=sys.stderr)
-            return
-
-        print(tabulate([{op: result}], headers="keys", tablefmt="grid"))
     except Exception as e:
         print(f"Aggregation failed: {e}", file=sys.stderr)
 
@@ -65,7 +76,8 @@ def main():
     args = parse_args()
     data = read_csv(args.file)
     filtered = apply_filter(data, args.where)
-    aggregate(filtered, args.aggregate)
+    ordered = apply_order(filtered, args.order_by)
+    aggregate(ordered, args.aggregate)
 
 
 if __name__ == '__main__':
