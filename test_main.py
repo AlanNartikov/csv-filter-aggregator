@@ -1,5 +1,6 @@
+
 import pytest
-from main import apply_filter
+from main import apply_filter, apply_order
 
 sample_data = [
     {"name": "iphone 15 pro", "brand": "apple", "price": "999", "rating": "4.9"},
@@ -24,3 +25,13 @@ def test_filter_less_than():
 def test_filter_invalid_operator():
     result = apply_filter(sample_data, "rating!4.5")
     assert result == sample_data
+
+def test_order_by_rating_desc():
+    result = apply_order(sample_data, "rating=desc")
+    ratings = [float(r["rating"]) for r in result]
+    assert ratings == sorted(ratings, reverse=True)
+
+def test_order_by_price_asc():
+    result = apply_order(sample_data, "price=asc")
+    prices = [float(r["price"]) for r in result]
+    assert prices == sorted(prices)
